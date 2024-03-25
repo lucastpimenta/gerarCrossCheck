@@ -12,6 +12,19 @@ Bash - Shell Unix e linguagem de script
 
 Oracle RMAN - Oracle Recovery Manager
 
+## 🔧 Instalação
+Existem duas maneiras de instalar este script no seu servidor Oracle:
+
+### 1. Clonando o Repositório
+Você pode clonar o repositório completo para ter acesso a todas as versões do script e futuras atualizações:
+```bash
+git clone https://github.com/lucastpimenta/gerarCrossCheck.git
+```
+### 2. Baixando o Script Diretamente
+Se preferir, você pode baixar apenas o script gerarCrossCheck.sh usando curl:
+```bash
+curl -o gerarCrossCheck.sh https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh
+```
 ## 🚀 Como Usar
 Para executar este script, você precisa passar pelo menos 4 argumentos: `USUARIO_ORACLE`, `NB_ORA_CLIENT`, `ORACLE_HOME`, e um ou mais `ORACLE_SID`.
 ```bash
