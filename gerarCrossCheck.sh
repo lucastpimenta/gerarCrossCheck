@@ -21,12 +21,22 @@ else
   SBT_LIBRARY="/usr/openv/netbackup/bin/libobk.so64"
 fi
 
-# Cria o script crosscheck.sh
-echo "#!/bin/bash" > /usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh
+# Inicia a criação do script crosscheck.sh
+cat > /usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh <<EOF
+#!/bin/bash
+EOF
 
+# Adiciona ao script crosscheck.sh comandos para cada ORACLE_SID
 for ORACLE_SID in "$@"; do
     cat >> /usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh <<EOF
-su - $USUARIO_ORACLE -c "bash -c 'export ORACLE_HOME=${ORACLE_HOME} && export ORACLE_SID=${ORACLE_SID} && export PATH=\$ORACLE_HOME/bin:\$PATH && rman target / @~/script/crosscheck.rmn log=~/script/crosscheck_${ORACLE_SID}.log'"
+
+su - $USUARIO_ORACLE -c "bash -c '\\
+export ORACLE_HOME=${ORACLE_HOME} && \\
+export ORACLE_SID=${ORACLE_SID} && \\
+export PATH=\\\${ORACLE_HOME}/bin:\\\${PATH} && \\
+rman target / @~/script/crosscheck.rmn log=~/script/crosscheck_${ORACLE_SID}.log\\
+'"
+
 EOF
 done
 
