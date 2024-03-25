@@ -34,7 +34,7 @@ su - $USUARIO_ORACLE -c "bash -c '\\
 export ORACLE_HOME=${ORACLE_HOME} && \\
 export ORACLE_SID=${ORACLE_SID} && \\
 export PATH=\\\${ORACLE_HOME}/bin:\\\${PATH} && \\
-rman target / @~/script/crosscheck.rmn log=~/script/crosscheck_${ORACLE_SID}.log\\
+rman target / @script/crosscheck.rmn log=script/crosscheck_${ORACLE_SID}.log\\
 '"
 
 EOF
