@@ -50,3 +50,6 @@ SEND 'NB_ORA_SERV=NB_PRIMARY,NB_ORA_CLIENT=${NB_ORA_CLIENT}';
 CROSSCHECK BACKUP;
 DELETE EXPIRED BACKUP;
 EOF"
+
+# Dá permissão de execução para o script crosscheck.sh
+chmod +x ~/script/crosscheck.rmn
