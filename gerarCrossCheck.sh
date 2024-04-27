@@ -36,20 +36,19 @@ export ORACLE_SID=${ORACLE_SID} && \\
 export PATH=\\\${ORACLE_HOME}/bin:\\\${PATH} && \\
 rman target / @script/crosscheck.rmn log=script/crosscheck_${ORACLE_SID}.log\\
 '"
-
 EOF
 done
 
 # Dá permissão de execução para o script crosscheck.sh
 chmod +x /usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh
 
-# Cria ou substitui o arquivo crosscheck.rmn
-su - $USUARIO_ORACLE -c "mkdir -p ~/script && cat > ~/script/crosscheck.rmn <<EOF
+# Cria ou substitui o arquivo crosscheck.rmn e ajusta a permissão
+su - $USUARIO_ORACLE -c "mkdir -p ~/script && \
+cat > ~/script/crosscheck.rmn <<EOF
 allocate channel for maintenance type 'sbt_tape' parms 'SBT_LIBRARY=${SBT_LIBRARY}';
 SEND 'NB_ORA_SERV=NB_PRIMARY,NB_ORA_CLIENT=${NB_ORA_CLIENT}';
 CROSSCHECK BACKUP;
 DELETE EXPIRED BACKUP;
-EOF"
-
-# Dá permissão de execução para o script crosscheck.sh
+EOF
 chmod +x ~/script/crosscheck.rmn
+"
