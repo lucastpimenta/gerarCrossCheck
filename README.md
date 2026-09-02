@@ -24,8 +24,9 @@ O objetivo é simplificar a validação e limpeza de backups expirados registrad
 
 - Configura automaticamente as variáveis de ambiente Oracle durante a execução.
 - Suporta autenticação:
-  - Oracle Wallet
+  - Oracle Wallet por banco
   - Local OS Authentication (`CONNECT TARGET '/'`)
+- Permite utilizar múltiplos bancos com wallets diferentes na mesma execução.
 - Executa as rotinas:
 
 ```rman
@@ -48,7 +49,7 @@ DELETE EXPIRED BACKUP;
 
 ## 🔧 Instalação
 
-### 1. Download do Script
+### Download do Script
 
 ```bash
 curl -O https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh
@@ -58,18 +59,49 @@ curl -O https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/ger
 
 ## 🚀 Como Usar
 
-### Utilizando Oracle Wallet
+### Sintaxe
 
 ```bash
-sudo bash gerarCrossCheck.sh <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> <ORACLE_WALLET> <ORACLE_SID_1> [<ORACLE_SID_2> ...]​‌
+sudo bash gerarCrossCheck.sh \
+<USUARIO_ORACLE> \
+<NB_ORA_CLIENT> \
+<ORACLE_HOME> \
+<SID1:WALLET|NONE> \
+[SID2:WALLET|NONE] ...
 ```
 
-### Utilizando Autenticação Local (Sem Wallet)
-
-Informe `NONE` no parâmetro do Wallet:
+### Exemplo com Oracle Wallet
 
 ```bash
-sudo bash gerarCrossCheck.sh <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> NONE <ORACLE_SID_1> [<ORACLE_SID_2> ...]
+sudo bash gerarCrossCheck.sh \
+oracle \
+cliente-netbackup \
+/u01/app/oracle/product/19.0.0/dbhome_1 \
+PRD:/u01/wallets/prd \
+HML:/u01/wallets/hml
+```
+
+### Exemplo sem Oracle Wallet
+
+```bash
+sudo bash gerarCrossCheck.sh \
+oracle \
+cliente-netbackup \
+/u01/app/oracle/product/19.0.0/dbhome_1 \
+PRD:NONE \
+DEV:NONE
+```
+
+### Exemplo misto
+
+```bash
+sudo bash gerarCrossCheck.sh \
+oracle \
+cliente-netbackup \
+/u01/app/oracle/product/19.0.0/dbhome_1 \
+PRD:/u01/wallets/prd \
+HML:/u01/wallets/hml \
+DEV:NONE
 ```
 
 ---
@@ -81,8 +113,8 @@ sudo bash gerarCrossCheck.sh <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> NONE
 | `USUARIO_ORACLE` | Usuário proprietário do Oracle |
 | `NB_ORA_CLIENT` | Cliente NetBackup utilizado pelo RMAN |
 | `ORACLE_HOME` | Oracle Home da instância |
-| `WALLET_PATH` | Caminho do Oracle Wallet ou `NONE` |
-| `SID` | Um ou mais Oracle SID |
+| `SID:WALLET` | SID Oracle seguido do caminho do Wallet |
+| `SID:NONE` | Utiliza autenticação local do sistema operacional para o SID informado |
 
 ---
 
@@ -143,19 +175,51 @@ O script foi projetado para ser utilizado em:
 
 ### Oracle Wallet
 
-Ao informar um caminho válido para o Wallet, o script utilizará:
+Para um SID configurado com Wallet:
+
+```bash
+PRD:/u01/wallets/prd
+```
+
+o script utilizará:
 
 ```rman
-CONNECT TARGET '/@<SID> AS SYSBACKUP';
+CONNECT TARGET '/@PRD AS SYSBACKUP';
+```
+
+e exportará automaticamente:
+
+```bash
+export TNS_ADMIN=/u01/wallets/prd
 ```
 
 ### Autenticação Local
 
-Ao informar `NONE` (maiúsculo ou minúsculo), o script utilizará:
+Para um SID configurado com:
+
+```bash
+PRD:NONE
+```
+
+o script utilizará:
 
 ```rman
 CONNECT TARGET '/';
 ```
+
+sem necessidade de Oracle Wallet.
+
+### Suporte a Ambientes Heterogêneos
+
+É possível executar múltiplos bancos na mesma chamada utilizando métodos de autenticação diferentes:
+
+```text
+PRD:/wallet/prd
+HML:/wallet/hml
+DEV:NONE
+```
+
+Cada SID terá seu próprio arquivo RMAN, variáveis de ambiente e método de conexão.
 
 ---
 
@@ -195,6 +259,14 @@ GitHub: <https://github.com/lucastpimenta>
 
 ## 📌 Histórico Recente
 
+### v2.1
+
+- Adicionado suporte a múltiplos Oracle Wallets.
+- Cada SID pode utilizar um Wallet diferente.
+- Adicionado suporte à sintaxe `SID:WALLET`.
+- Adicionado suporte à sintaxe `SID:NONE`.
+- Possibilidade de misturar autenticação por Wallet e autenticação local na mesma execução.
+
 ### v2.0
 
 - Adicionado suporte a Oracle Wallet.
@@ -209,3 +281,7 @@ CROSSCHECK BACKUP;
 
 DELETE EXPIRED BACKUP;
 ```
+
+### v1.0
+
+- Primeira versão do gerador de rotinas CrossCheck para Oracle RMAN.
