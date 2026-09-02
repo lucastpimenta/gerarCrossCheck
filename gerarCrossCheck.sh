@@ -2,28 +2,26 @@
 
 ###############################################################################
 # Script: gerarCrossCheck.sh
+#
 # Objetivo:
-#   Gerar script RMAN CrossCheck para NetBackup.
+#   Gerar scripts RMAN de CrossCheck para NetBackup.
 #
-# Uso com Wallet:
-#   gerarCrossCheck.sh oracle CLIENTE ORACLE_HOME WALLET_PATH SID1 [SID2...]
+# Uso:
+#   gerarCrossCheck.sh oracle CLIENTE ORACLE_HOME SID1:WALLET SID2:WALLET ...
 #
-# Uso sem Wallet:
-#   gerarCrossCheck.sh oracle CLIENTE ORACLE_HOME NONE SID1 [SID2...]
 ###############################################################################
 
-if [ "$#" -lt 5 ]; then
+if [ "$#" -lt 4 ]; then
     echo "Uso:"
-    echo "$0 <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> <WALLET_PATH|NONE> <SID1> [SID2 ...]"
+    echo "$0 <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> <SID:WALLET|NONE> [SID:WALLET|NONE ...]"
     exit 1
 fi
 
 USUARIO_ORACLE="$1"
 NB_ORA_CLIENT="$2"
 ORACLE_HOME="$3"
-WALLET_PATH="$4"
 
-shift 4
+shift 3
 
 ###############################################################################
 # Sistema Operacional
@@ -73,8 +71,16 @@ EOF
 # Processa cada SID
 ###############################################################################
 
-for ORACLE_SID in "$@"
+for ITEM in "$@"
 do
+
+    ORACLE_SID="${ITEM%%:*}"
+    WALLET_PATH="${ITEM#*:}"
+
+    if [ -z "${ORACLE_SID}" ]; then
+        echo "Entrada inválida: ${ITEM}"
+        continue
+    fi
 
     RMAN_FILE="${SCRIPT_DIR}/crosscheck_${ORACLE_SID}.rmn"
     LOG_FILE="${SCRIPT_DIR}/crosscheck_${ORACLE_SID}.log"
@@ -155,13 +161,16 @@ echo "===================================================="
 echo "Arquivos criados"
 echo "===================================================="
 echo
+
 echo "Launcher:"
 echo "  ${LAUNCHER}"
+
 echo
 echo "Arquivos RMAN:"
 
-for ORACLE_SID in "$@"
+for ITEM in "$@"
 do
+    ORACLE_SID="${ITEM%%:*}"
     echo "  ${SCRIPT_DIR}/crosscheck_${ORACLE_SID}.rmn"
 done
 
