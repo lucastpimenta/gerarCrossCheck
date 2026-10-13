@@ -6,14 +6,23 @@
 # Objetivo:
 #   Gerar scripts RMAN de CrossCheck para NetBackup.
 #
-# Uso:
-#   gerarCrossCheck.sh NB_PRIMARY oracle ORACLE_HOME SID1:WALLET SID2:WALLET ...
+# Formatos aceitos:
+#
+#   SID
+#   SID:WALLET
+#   SID:TNS_ALIAS:WALLET
+#
+# Exemplos:
+#
+#   BWP001
+#   BWP001:/oracle/BWP/wallet
+#   sesabdb1:sesabdbg:/oracle/wallet
 #
 ###############################################################################
 
 if [ "$#" -lt 4 ]; then
     echo "Uso:"
-    echo "$0 <NB_PRIMARY> <USUARIO_ORACLE> <ORACLE_HOME> <SID:WALLET|NONE> [SID:WALLET|NONE ...]"
+    echo "$0 <NB_PRIMARY> <USUARIO_ORACLE> <ORACLE_HOME> <SID|SID:WALLET|SID:TNS_ALIAS:WALLET> [...]"
     exit 1
 fi
 
@@ -68,33 +77,72 @@ cat > "${LAUNCHER}" <<EOF
 EOF
 
 ###############################################################################
-# Processa cada SID
+# Processa cada banco
 ###############################################################################
 
 for ITEM in "$@"
 do
 
-    ORACLE_SID="${ITEM%%:*}"
-    WALLET_PATH="${ITEM#*:}"
+    OLDIFS="$IFS"
+    IFS=':'
+    set -- $ITEM
+    IFS="$OLDIFS"
+
+    ORACLE_SID="$1"
+    PARAM2="$2"
+    PARAM3="$3"
 
     if [ -z "${ORACLE_SID}" ]; then
         echo "Entrada inválida: ${ITEM}"
         continue
     fi
 
+    ###########################################################################
+    # Interpretação dos parâmetros
+    ###########################################################################
+
+    if [ -z "${PARAM2}" ]; then
+
+        # SID
+        TNS_ALIAS=""
+        WALLET_PATH=""
+
+    elif [ -z "${PARAM3}" ]; then
+
+        # SID:WALLET
+        TNS_ALIAS="${ORACLE_SID}"
+        WALLET_PATH="${PARAM2}"
+
+    else
+
+        # SID:TNS_ALIAS:WALLET
+        TNS_ALIAS="${PARAM2}"
+        WALLET_PATH="${PARAM3}"
+
+    fi
+
     RMAN_FILE="${SCRIPT_DIR}/crosscheck_${ORACLE_SID}.rmn"
     LOG_FILE="${SCRIPT_DIR}/crosscheck_${ORACLE_SID}.log"
 
     ###########################################################################
-    # Wallet ou autenticação local
+    # Conexão Oracle
     ###########################################################################
 
-    if [ "$(echo "${WALLET_PATH}" | tr '[:lower:]' '[:upper:]')" = "NONE" ]; then
+    if [ -z "${TNS_ALIAS}" ]; then
+
         CONNECT_CMD="CONNECT TARGET '/';"
         TNS_ADMIN_EXPORT=""
+
     else
-        CONNECT_CMD="CONNECT TARGET '/@${ORACLE_SID} AS SYSBACKUP';"
-        TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+
+        CONNECT_CMD="CONNECT TARGET '/@${TNS_ALIAS} AS SYSBACKUP';"
+
+        if [ -n "${WALLET_PATH}" ]; then
+            TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+        else
+            TNS_ADMIN_EXPORT=""
+        fi
+
     fi
 
     ###########################################################################
@@ -169,7 +217,7 @@ echo "Arquivos RMAN:"
 
 for ITEM in "$@"
 do
-    ORACLE_SID="${ITEM%%:*}"
+    ORACLE_SID=$(echo "$ITEM" | cut -d: -f1)
     echo "  ${SCRIPT_DIR}/crosscheck_${ORACLE_SID}.rmn"
 done
 
