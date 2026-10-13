@@ -65,7 +65,6 @@ curl -O https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/ger
 sudo bash gerarCrossCheck.sh \
 <NBU_PRIMARY> \
 <USUARIO_ORACLE> \
-<NB_ORA_CLIENT> \
 <ORACLE_HOME> \
 <SID1:WALLET|NONE> \
 [SID2:WALLET|NONE] ...
@@ -77,7 +76,6 @@ sudo bash gerarCrossCheck.sh \
 sudo bash gerarCrossCheck.sh \
 nbu_primary.empresa.local \
 oracle \
-cliente-netbackup \
 /u01/app/oracle/product/19.0.0/dbhome_1 \
 PRD:/u01/wallets/prd \
 HML:/u01/wallets/hml
@@ -89,7 +87,6 @@ HML:/u01/wallets/hml
 sudo bash gerarCrossCheck.sh \
 nbu_primary.empresa.local \
 oracle \
-cliente-netbackup \
 /u01/app/oracle/product/19.0.0/dbhome_1 \
 PRD:NONE \
 DEV:NONE
@@ -101,7 +98,6 @@ DEV:NONE
 sudo bash gerarCrossCheck.sh \
 nbu_primary.empresa.local \
 oracle \
-cliente-netbackup \
 /u01/app/oracle/product/19.0.0/dbhome_1 \
 PRD:/u01/wallets/prd \
 HML:/u01/wallets/hml \
@@ -116,7 +112,6 @@ DEV:NONE
 |-----------|-----------|
 | `NBU_PRIMARY` | FQDN do NetBackup Primary Server |
 | `USUARIO_ORACLE` | Usuário proprietário do Oracle |
-| `NB_ORA_CLIENT` | Cliente NetBackup utilizado pelo RMAN |
 | `ORACLE_HOME` | Oracle Home da instância |
 | `SID:WALLET` | SID Oracle seguido do caminho do Wallet |
 | `SID:NONE` | Utiliza autenticação local do sistema operacional para o SID informado |
@@ -263,6 +258,10 @@ GitHub: <https://github.com/lucastpimenta>
 ---
 
 ## 📌 Histórico Recente
+
+### v2.3
+
+- Removido o parâmetro NB_ORA_CLIENT
 
 ### v2.2
 
