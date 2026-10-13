@@ -63,6 +63,7 @@ curl -O https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/ger
 
 ```bash
 sudo bash gerarCrossCheck.sh \
+<NBU_PRIMARY> \
 <USUARIO_ORACLE> \
 <NB_ORA_CLIENT> \
 <ORACLE_HOME> \
@@ -74,6 +75,7 @@ sudo bash gerarCrossCheck.sh \
 
 ```bash
 sudo bash gerarCrossCheck.sh \
+nbu_primary.empresa.local \
 oracle \
 cliente-netbackup \
 /u01/app/oracle/product/19.0.0/dbhome_1 \
@@ -85,6 +87,7 @@ HML:/u01/wallets/hml
 
 ```bash
 sudo bash gerarCrossCheck.sh \
+nbu_primary.empresa.local \
 oracle \
 cliente-netbackup \
 /u01/app/oracle/product/19.0.0/dbhome_1 \
@@ -96,6 +99,7 @@ DEV:NONE
 
 ```bash
 sudo bash gerarCrossCheck.sh \
+nbu_primary.empresa.local \
 oracle \
 cliente-netbackup \
 /u01/app/oracle/product/19.0.0/dbhome_1 \
@@ -110,6 +114,7 @@ DEV:NONE
 
 | Parâmetro | Descrição |
 |-----------|-----------|
+| `NBU_PRIMARY` | FQDN do NetBackup Primary Server |
 | `USUARIO_ORACLE` | Usuário proprietário do Oracle |
 | `NB_ORA_CLIENT` | Cliente NetBackup utilizado pelo RMAN |
 | `ORACLE_HOME` | Oracle Home da instância |
@@ -258,6 +263,10 @@ GitHub: <https://github.com/lucastpimenta>
 ---
 
 ## 📌 Histórico Recente
+
+### v2.2
+
+- Adicionado suporte a à sintaxe NBU_PRIMARY
 
 ### v2.1
 
