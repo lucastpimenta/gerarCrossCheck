@@ -7,21 +7,22 @@
 #   Gerar scripts RMAN de CrossCheck para NetBackup.
 #
 # Uso:
-#   gerarCrossCheck.sh oracle CLIENTE ORACLE_HOME SID1:WALLET SID2:WALLET ...
+#   gerarCrossCheck.sh NB_PRIMARY oracle CLIENTE ORACLE_HOME SID1:WALLET SID2:WALLET ...
 #
 ###############################################################################
 
-if [ "$#" -lt 4 ]; then
+if [ "$#" -lt 5 ]; then
     echo "Uso:"
-    echo "$0 <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> <SID:WALLET|NONE> [SID:WALLET|NONE ...]"
+    echo "$0 <NB_PRIMARY> <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> <SID:WALLET|NONE> [SID:WALLET|NONE ...]"
     exit 1
 fi
 
-USUARIO_ORACLE="$1"
-NB_ORA_CLIENT="$2"
-ORACLE_HOME="$3"
+NB_PRIMARY="$1"
+USUARIO_ORACLE="$2"
+NB_ORA_CLIENT="$3"
+ORACLE_HOME="$4"
 
-shift 3
+shift 4
 
 ###############################################################################
 # Sistema Operacional
@@ -133,7 +134,7 @@ NB_ORA_SID=${ORACLE_SID},
 NB_ORA_CLIENT=${NB_ORA_CLIENT}
 )';
 
-SEND 'NB_ORA_SERV=NB_PRIMARY';
+SEND 'NB_ORA_SERV=${NB_PRIMARY}';
 
 CROSSCHECK BACKUP;
 
