@@ -7,22 +7,21 @@
 #   Gerar scripts RMAN de CrossCheck para NetBackup.
 #
 # Uso:
-#   gerarCrossCheck.sh NB_PRIMARY oracle CLIENTE ORACLE_HOME SID1:WALLET SID2:WALLET ...
+#   gerarCrossCheck.sh NB_PRIMARY oracle ORACLE_HOME SID1:WALLET SID2:WALLET ...
 #
 ###############################################################################
 
-if [ "$#" -lt 5 ]; then
+if [ "$#" -lt 4 ]; then
     echo "Uso:"
-    echo "$0 <NB_PRIMARY> <USUARIO_ORACLE> <NB_ORA_CLIENT> <ORACLE_HOME> <SID:WALLET|NONE> [SID:WALLET|NONE ...]"
+    echo "$0 <NB_PRIMARY> <USUARIO_ORACLE> <ORACLE_HOME> <SID:WALLET|NONE> [SID:WALLET|NONE ...]"
     exit 1
 fi
 
 NB_PRIMARY="$1"
 USUARIO_ORACLE="$2"
-NB_ORA_CLIENT="$3"
-ORACLE_HOME="$4"
+ORACLE_HOME="$3"
 
-shift 4
+shift 3
 
 ###############################################################################
 # Sistema Operacional
@@ -130,8 +129,7 @@ ALLOCATE CHANNEL ch1 DEVICE TYPE SBT_TAPE
 PARMS 'SBT_LIBRARY=${SBT_LIBRARY},
 ENV=(
 NB_ORA_HOME=${ORACLE_HOME},
-NB_ORA_SID=${ORACLE_SID},
-NB_ORA_CLIENT=${NB_ORA_CLIENT}
+NB_ORA_SID=${ORACLE_SID}
 )';
 
 SEND 'NB_ORA_SERV=${NB_PRIMARY}';
