@@ -9,10 +9,10 @@ O objetivo é simplificar a validação e a limpeza de backups expirados registr
 ## 📦 O que o Script Faz
 
 - Detecta automaticamente o sistema operacional (**Linux**, **Solaris** ou **AIX**).
-- Configura dinamicamente a biblioteca SBT (`libobk`) adequada para cada plataforma[cite: 7]:
+- Configura dinamicamente a biblioteca SBT (`libobk`) adequada para cada plataforma:
   - Linux: `/usr/openv/netbackup/bin/libobk.so64`
   - Solaris: `/usr/openv/netbackup/bin/libobk.so64.1`
-  - AIX: `/usr/openv/netbackup/bin/libobk.a64(shr.o)`[cite: 7]
+  - AIX: `/usr/openv/netbackup/bin/libobk.a64(shr.o)`
 - Executa validações de permissões diretamente com o usuário Oracle informado (`$DB_USER`), mesmo sendo disparado como `root`.
 - Desativa automaticamente traces excessivos de diagnóstico do cliente ADR e Net8 (`DIAG_ADR_ENABLED=OFF` e `TRACE_LEVEL_CLIENT=OFF`), evitando consumo descontrolado de espaço na partição `/oracle`.
 - Gera o inicializador executável (launcher):
@@ -24,8 +24,8 @@ O objetivo é simplificar a validação e a limpeza de backups expirados registr
 - Gera o arquivo de comandos RMAN com permissões restritas (640):
   - **Single Instance:** `~/script/crosscheck_<SID>.rmn`
   - **Oracle RAC:** `~/script/crosscheck_rac_<DB_NAME>.rmn`
-- No **Oracle RAC**, aloca canais simultâneos para todos os nós participantes com seus respectivos `NB_ORA_CLIENT`[cite: 7], evitando falsos positivos de peças expiradas geradas por outros nós.
-- Monta automaticamente a diretiva `NB_ORA_CATALOG_HOST` com base no `Database Name` e `Database ID` (`<DB_NAME>_<DB_ID>`), integrando-se nativamente à Web UI do NetBackup[cite: 4].
+- No **Oracle RAC**, aloca canais simultâneos para todos os nós participantes com seus respectivos `NB_ORA_CLIENT`, evitando falsos positivos de peças expiradas geradas por outros nós.
+- Monta automaticamente a diretiva `NB_ORA_CATALOG_HOST` com base no `Database Name` e `Database ID` (`<DB_NAME>_<DB_ID>`), integrando-se nativamente à Web UI do NetBackup.
 - Executa as instruções:
 
 ```rman
@@ -42,7 +42,7 @@ DELETE NOPROMPT EXPIRED BACKUP;
 
 - Bash
 - Oracle RMAN
-- Veritas NetBackup (10.x / 9.x)[cite: 7]
+- Veritas NetBackup 10.x
 
 ---
 
@@ -81,22 +81,22 @@ O script é totalmente interativo e conduz o preenchimento de acordo com a topol
 As perguntas são organizadas na ordem visual exata das telas de administração do NetBackup:
 
 1. **Informações Gerais:**
-   - Servidor Primário / Master do NetBackup[cite: 7]
+   - Servidor Primário / Master do NetBackup
    - Usuário Oracle no SO (valida se o usuário existe)
    - Topologia: selecionar `2) Oracle RAC`
-2. **Tela "Edit database" (Configurações Gerais):**[cite: 4]
-   - Enter database name / Database unique name[cite: 4]
-   - Database ID *(o script concatena `<DB_NAME>_<DB_ID>` para o catálogo)*[cite: 4]
-   - Scan name[cite: 4]
-   - Service name[cite: 4]
-   - Port[cite: 4]
-   - Oracle Wallet path *(validação de leitura das credenciais pelo usuário Oracle)*[cite: 4]
-3. **Tela "Instances" (Tabela de Nós do RAC):**[cite: 5]
-   - Quantidade de instâncias (linhas da tabela)[cite: 5]
-   - Para cada nó:[cite: 5]
-     - Instance name[cite: 5]
-     - Client name (IP ou Hostname registrado no NetBackup)[cite: 5]
-     - Oracle home[cite: 5]
+2. **Tela "Edit database" (Configurações Gerais):**
+   - Enter database name / Database unique name
+   - Database ID *(o script concatena `<DB_NAME>_<DB_ID>` para o catálogo)*
+   - Scan name
+   - Service name
+   - Port
+   - Oracle Wallet path *(validação de leitura das credenciais pelo usuário Oracle)*
+3. **Tela "Instances" (Tabela de Nós do RAC):**
+   - Quantidade de instâncias (linhas da tabela)
+   - Para cada nó:
+     - Instance name
+     - Client name (IP ou Hostname registrado no NetBackup)
+     - Oracle home
 
 ---
 
@@ -153,8 +153,8 @@ O launcher gerado em `/usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh` pode
 ## ✅ Sistemas Operacionais Suportados
 
 - IBM AIX (64-bit)
-- Linux (RHEL, SLES, Oracle Linux)[cite: 7]
-- Oracle Solaris (SunOS)[cite: 7]
+- Linux (RHEL, SLES, Oracle Linux)
+- Oracle Solaris (SunOS)
 
 ---
 
@@ -164,7 +164,7 @@ O launcher gerado em `/usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh` pode
 - Oracle RMAN
 - Agente Veritas NetBackup instalado e configurado
 - Usuário proprietário do Oracle configurado no sistema operacional
-- Oracle Wallet configurada (quando aplicável)[cite: 4]
+- Oracle Wallet configurada (quando aplicável)
 
 ---
 
@@ -194,15 +194,15 @@ GitHub: [https://github.com/lucastpimenta](https://github.com/lucastpimenta)
 
 - Reformulação completa da ferramenta, substituindo passagem manual de parâmetros por interface interativa em linha de comando.
 - Suporte nativo completo a **Oracle RAC** com balanceamento e alocação de canais para todos os nós participantes.
-- Ordem dos prompts no RAC alinhada à interface Web UI do NetBackup (*Edit database* e *Instances*)[cite: 4, 5].
-- Montagem automática do parâmetro `NB_ORA_CATALOG_HOST` a partir do `Database Name` e `Database ID`[cite: 4].
-- Suporte a conexões via **Oracle Wallet Connect Descriptors (SCAN)** sem necessidade de arquivo `tnsnames.ora`[cite: 4, 6].
+- Ordem dos prompts no RAC alinhada à interface Web UI do NetBackup (*Edit database* e *Instances*).
+- Montagem automática do parâmetro `NB_ORA_CATALOG_HOST` a partir do `Database Name` e `Database ID`.
+- Suporte a conexões via **Oracle Wallet Connect Descriptors (SCAN)** sem necessidade de arquivo `tnsnames.ora`.
 - Validação contextual de permissões em diretórios (`ORACLE_HOME`, `rman` e Wallet) executada diretamente sob a identidade do usuário Oracle, evitando inconsistências ao rodar como `root`.
 - Limpeza automática de backups expirados com `DELETE NOPROMPT EXPIRED BACKUP`.
 
 ### v2.3
 
-- Removido o parâmetro `NB_ORA_CLIENT`[cite: 7].
+- Removido o parâmetro `NB_ORA_CLIENT`.
 
 ### v2.2
 
@@ -216,7 +216,7 @@ GitHub: [https://github.com/lucastpimenta](https://github.com/lucastpimenta)
 ### v2.0
 
 - Adicionado suporte a Oracle Wallet e autenticação local (`NONE`).
-- Compatibilidade validada para Linux, Solaris e AIX[cite: 7].
+- Compatibilidade validada para Linux, Solaris e AIX.
 - Correção de problemas de shell e quoting no AIX.
 
 ### v1.0
