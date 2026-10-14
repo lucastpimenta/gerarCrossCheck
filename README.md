@@ -52,21 +52,15 @@ Execute como `root` no servidor desejado.
 
 ### Método Recomendado (Python 3 - IBM AIX)
 
-```bash
-python3 -c "import urllib.request; urllib.request.urlretrieve('[https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh)')"
-```
-
-```bash
+```text
+python3 -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh')"
 chmod 755 gerarCrossCheck.sh
 ```
 
 ### Método Alternativo (cURL - Linux)
 
-```bash
-curl -sSL [https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh) -o gerarCrossCheck.sh
-```
-
-```bash
+```text
+curl -sSL https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh -o gerarCrossCheck.sh
 chmod 755 gerarCrossCheck.sh
 ```
 
