@@ -6,9 +6,6 @@
 # Execucao : Como ROOT
 # Objetivo : Gerador interativo de scripts RMAN e Launcher para CrossCheck
 #            compativel com Veritas NetBackup (Single Instance e RAC).
-# Novidade v3.1:
-#   - Desativa automaticamente traces e ADR do cliente (evita crescimento de /oracle)
-#   - Resumo automatico de contagem de objetos ao final da execucao
 ###############################################################################
 
 # Validacao de execucao como root
@@ -104,8 +101,16 @@ if [ "$TOPOLOGIA" == "1" ]; then
     WALLET_PATH=""
     TNS_ADMIN_EXPORT=""
     if [ "$METODO_CONN" == "2" ]; then
-        read -p "Oracle Wallet path: " WALLET_PATH
-        TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+        while true; do
+            read -p "Oracle Wallet path: " WALLET_PATH
+            su - "${DB_USER}" -c "[ -r '${WALLET_PATH}/cwallet.sso' -o -r '${WALLET_PATH}/ewallet.p12' ]" >/dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+                break
+            else
+                echo "ERRO: Arquivos da Wallet (cwallet.sso ou ewallet.p12) nao encontrados ou sem permissao de leitura em '${WALLET_PATH}' para o usuario '${DB_USER}'. Tente novamente."
+            fi
+        done
         read -p "TNS alias: " TNS_ALIAS
         CONNECT_CMD="CONNECT TARGET /@${TNS_ALIAS};"
     elif [ "$METODO_CONN" == "3" ]; then
@@ -140,7 +145,6 @@ RUN {
 EXIT;
 EOF
 
-    # Launcher Single Instance (com desativacao de trace e resumo AWK)
     cat >> "${LAUNCHER}" <<EOF
 
 echo "===================================================="
@@ -190,19 +194,22 @@ else
 
     read -p "Scan name: " SCAN_NAME
     read -p "Service name: " SERVICE_NAME
-    read -p "Port: " SCAN_PORT
-    read -p "Oracle Wallet path: " WALLET_PATH
 
-    TNS_ADMIN_EXPORT=""
-    if [ -n "${WALLET_PATH}" ]; then
+    # Leitura da porta com fallback para 1521
+    read -p "Port [1521]: " SCAN_PORT
+    SCAN_PORT=${SCAN_PORT:-1521}
+
+    # Loop de validacao estrita do caminho da Wallet
+    while true; do
+        read -p "Oracle Wallet path: " WALLET_PATH
         su - "${DB_USER}" -c "[ -r '${WALLET_PATH}/cwallet.sso' -o -r '${WALLET_PATH}/ewallet.p12' ]" >/dev/null 2>&1
         if [ $? -eq 0 ]; then
             TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+            break
         else
-            echo "AVISO: Arquivos da Wallet nao encontrados em '${WALLET_PATH}' para o usuario '${DB_USER}'."
-            TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+            echo "ERRO: Arquivos da Wallet (cwallet.sso ou ewallet.p12) nao encontrados ou sem permissao de leitura em '${WALLET_PATH}' para o usuario '${DB_USER}'. Tente novamente."
         fi
-    fi
+    done
 
     # --- Tela 2: Instances ---
     read -p "Quantidade de instancias (linhas da tabela): " TOTAL_NODES
@@ -275,7 +282,6 @@ else
         echo "EXIT;"
     } > "${RMAN_FILE}"
 
-    # Launcher RAC (com desativacao de trace e resumo AWK)
     cat >> "${LAUNCHER}" <<EOF
 
 echo "===================================================="
