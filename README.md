@@ -50,7 +50,7 @@ DELETE NOPROMPT EXPIRED BACKUP;
 
 Como o script deve ser executado como `root`, baixe diretamente no servidor desejado.
 
-### Via Python 3 (Recomendado no AIX)
+### Via Python 3 (Validado no IBM AIX)
 
 ```bash
 python3 -c "import urllib.request; urllib.request.urlretrieve('[https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh)')"
