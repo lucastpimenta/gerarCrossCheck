@@ -193,7 +193,10 @@ else
     NB_ORA_CATALOG_HOST="${DB_NAME}_${DB_ID}"
 
     read -p "Scan name: " SCAN_NAME
-    read -p "Service name: " SERVICE_NAME
+
+    # Leitura do Service name sugerindo o proprio DB_NAME
+    read -p "Service name [${DB_NAME}]: " SERVICE_NAME
+    SERVICE_NAME=${SERVICE_NAME:-$DB_NAME}
 
     # Leitura da porta com fallback para 1521
     read -p "Port [1521]: " SCAN_PORT
@@ -212,18 +215,36 @@ else
     done
 
     # --- Tela 2: Instances ---
-    read -p "Quantidade de instancias (linhas da tabela): " TOTAL_NODES
+    read -p "Quantidade de instancias do RAC: " TOTAL_NODES
 
     declare -a ARR_SID
     declare -a ARR_CLIENT
     declare -a ARR_HOME
 
+    # Base para sugestao do SID (ex: bwp -> BWP)
+    DB_NAME_UPPER=$(echo "${DB_NAME}" | tr '[:lower:]' '[:upper:]')
+    PREV_HOME=""
+
     for (( i=1; i<=TOTAL_NODES; i++ ))
     do
         echo "--- Instancia $i ---"
-        read -p "Instance name: " NODE_SID
+
+        # Sugestao do Instance name com formato 001, 002...
+        DEFAULT_SID=$(printf "%s%03d" "${DB_NAME_UPPER}" "$i")
+        read -p "Instance name [${DEFAULT_SID}]: " NODE_SID
+        NODE_SID=${NODE_SID:-$DEFAULT_SID}
+
         read -p "Client name: " NODE_CLIENT
-        read -p "Oracle home: " NODE_HOME
+
+        # Sugestao do Oracle Home (apenas a partir da segunda instancia)
+        if [ $i -eq 1 ]; then
+            read -p "Oracle home: " NODE_HOME
+            PREV_HOME="${NODE_HOME}"
+        else
+            read -p "Oracle home [${PREV_HOME}]: " NODE_HOME
+            NODE_HOME=${NODE_HOME:-$PREV_HOME}
+            PREV_HOME="${NODE_HOME}"
+        fi
         
         ARR_SID+=("$NODE_SID")
         ARR_CLIENT+=("$NODE_CLIENT")
