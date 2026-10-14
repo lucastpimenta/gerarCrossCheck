@@ -147,11 +147,11 @@ EOF
 
     cat >> "${LAUNCHER}" <<EOF
 
-echo "===================================================="
-echo "CrossCheck Single Instance: ${DB_SID}"
-echo "===================================================="
-su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${DB_HOME}; export ORACLE_SID=${DB_SID}; ${TNS_ADMIN_EXPORT} export DIAG_ADR_ENABLED=OFF; export TRACE_LEVEL_CLIENT=OFF; export ADR_BASE=/tmp; export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
-echo "Log gerado em: ${LOG_FILE}"
+echo "INF - ===================================================="
+echo "INF - CrossCheck Single Instance: ${DB_SID}"
+echo "INF - ===================================================="
+su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${DB_HOME}; export ORACLE_SID=${DB_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
+echo "INF - Log gerado em: ${LOG_FILE}"
 
 awk '
 /crosschecked backup piece: found to be/ {
@@ -165,16 +165,15 @@ awk '
     for(i=1; i<=NF; i++) { if (\$i ~ /^[0-9]+$/) rman_total = \$i }
 }
 END {
-    print ""
-    print "===================================================="
-    print "            RESUMO DO RMAN CROSSCHECK               "
-    print "===================================================="
-    printf "Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
-    printf "  - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
-    printf "  - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
-    print "----------------------------------------------------"
-    printf "Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
-    print "===================================================="
+    print "INF - ===================================================="
+    print "INF -             RESUMO DO RMAN CROSSCHECK               "
+    print "INF - ===================================================="
+    printf "INF - Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
+    printf "INF -   - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
+    printf "INF -   - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
+    print "INF - ----------------------------------------------------"
+    printf "INF - Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
+    print "INF - ===================================================="
 }
 ' "${LOG_FILE}"
 
@@ -221,7 +220,6 @@ else
     declare -a ARR_CLIENT
     declare -a ARR_HOME
 
-    # Base para sugestao do SID (ex: bwp -> BWP)
     DB_NAME_UPPER=$(echo "${DB_NAME}" | tr '[:lower:]' '[:upper:]')
     PREV_HOME=""
 
@@ -229,14 +227,12 @@ else
     do
         echo "--- Instancia $i ---"
 
-        # Sugestao do Instance name com formato 001, 002...
         DEFAULT_SID=$(printf "%s%03d" "${DB_NAME_UPPER}" "$i")
         read -p "Instance name [${DEFAULT_SID}]: " NODE_SID
         NODE_SID=${NODE_SID:-$DEFAULT_SID}
 
         read -p "Client name: " NODE_CLIENT
 
-        # Sugestao do Oracle Home (apenas a partir da segunda instancia)
         if [ $i -eq 1 ]; then
             read -p "Oracle home: " NODE_HOME
             PREV_HOME="${NODE_HOME}"
@@ -305,11 +301,11 @@ else
 
     cat >> "${LAUNCHER}" <<EOF
 
-echo "===================================================="
-echo "CrossCheck Oracle RAC: ${DB_NAME} (No Primario: ${FIRST_SID})"
-echo "===================================================="
-su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${LOCAL_HOME}; export ORACLE_SID=${FIRST_SID}; ${TNS_ADMIN_EXPORT} export DIAG_ADR_ENABLED=OFF; export TRACE_LEVEL_CLIENT=OFF; export ADR_BASE=/tmp; export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
-echo "Log gerado em: ${LOG_FILE}"
+echo "INF - ===================================================="
+echo "INF - CrossCheck Oracle RAC: ${DB_NAME} (No Primario: ${FIRST_SID})"
+echo "INF - ===================================================="
+su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${LOCAL_HOME}; export ORACLE_SID=${FIRST_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
+echo "INF - Log gerado em: ${LOG_FILE}"
 
 awk '
 /crosschecked backup piece: found to be/ {
@@ -323,16 +319,15 @@ awk '
     for(i=1; i<=NF; i++) { if (\$i ~ /^[0-9]+$/) rman_total = \$i }
 }
 END {
-    print ""
-    print "===================================================="
-    print "            RESUMO DO RMAN CROSSCHECK               "
-    print "===================================================="
-    printf "Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
-    printf "  - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
-    printf "  - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
-    print "----------------------------------------------------"
-    printf "Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
-    print "===================================================="
+    print "INF - ===================================================="
+    print "INF -             RESUMO DO RMAN CROSSCHECK               "
+    print "INF - ===================================================="
+    printf "INF - Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
+    printf "INF -   - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
+    printf "INF -   - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
+    print "INF - ----------------------------------------------------"
+    printf "INF - Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
+    print "INF - ===================================================="
 }
 ' "${LOG_FILE}"
 
