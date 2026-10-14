@@ -1,10 +1,14 @@
 #!/bin/bash
 
 ###############################################################################
-# Script : gerarCrossCheck.sh
+# Script   : gerarCrossCheck.sh
+# Versao   : 3.1
 # Execucao : Como ROOT
 # Objetivo : Gerador interativo de scripts RMAN e Launcher para CrossCheck
 #            compativel com Veritas NetBackup (Single Instance e RAC).
+# Novidade v3.1:
+#   - Desativa automaticamente traces e ADR do cliente (evita crescimento de /oracle)
+#   - Resumo automatico de contagem de objetos ao final da execucao
 ###############################################################################
 
 # Validacao de execucao como root
@@ -34,7 +38,7 @@ case "$(uname -s)" in
 esac
 
 echo "============================================================"
-echo "    GERADOR DE SCRIPTS RMAN CROSSCHECK (NETBACKUP)"
+echo "    GERADOR DE SCRIPTS RMAN CROSSCHECK (NETBACKUP) v3.1"
 echo "============================================================"
 
 # 1. Servidor Primario / Master do NetBackup
@@ -136,13 +140,39 @@ RUN {
 EXIT;
 EOF
 
+    # Launcher Single Instance (com desativacao de trace e resumo AWK)
     cat >> "${LAUNCHER}" <<EOF
 
 echo "===================================================="
 echo "CrossCheck Single Instance: ${DB_SID}"
 echo "===================================================="
-su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${DB_HOME}; export ORACLE_SID=${DB_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
+su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${DB_HOME}; export ORACLE_SID=${DB_SID}; ${TNS_ADMIN_EXPORT} export DIAG_ADR_ENABLED=OFF; export TRACE_LEVEL_CLIENT=OFF; export ADR_BASE=/tmp; export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
 echo "Log gerado em: ${LOG_FILE}"
+
+awk '
+/crosschecked backup piece: found to be/ {
+    match(\$0, /found to be '\''[A-Z]+'\''/)
+    status = substr(\$0, RSTART + 13, RLENGTH - 14)
+    total++
+    status_count[status]++
+}
+/deleted backup piece/ { deleted++ }
+/Crosschecked [0-9]+ objects/ {
+    for(i=1; i<=NF; i++) { if (\$i ~ /^[0-9]+$/) rman_total = \$i }
+}
+END {
+    print ""
+    print "===================================================="
+    print "            RESUMO DO RMAN CROSSCHECK               "
+    print "===================================================="
+    printf "Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
+    printf "  - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
+    printf "  - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
+    print "----------------------------------------------------"
+    printf "Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
+    print "===================================================="
+}
+' "${LOG_FILE}"
 
 EOF
 
@@ -193,7 +223,6 @@ else
         ARR_HOME+=("$NODE_HOME")
     done
 
-    # Validacao do ORACLE_HOME do no local
     LOCAL_HOME="${ARR_HOME[0]}"
     su - "${DB_USER}" -c "[ -d '${LOCAL_HOME}' ] && [ -x '${LOCAL_HOME}/bin/rman' ]" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
@@ -246,14 +275,39 @@ else
         echo "EXIT;"
     } > "${RMAN_FILE}"
 
-    # Launcher
+    # Launcher RAC (com desativacao de trace e resumo AWK)
     cat >> "${LAUNCHER}" <<EOF
 
 echo "===================================================="
 echo "CrossCheck Oracle RAC: ${DB_NAME} (No Primario: ${FIRST_SID})"
 echo "===================================================="
-su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${LOCAL_HOME}; export ORACLE_SID=${FIRST_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
+su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${LOCAL_HOME}; export ORACLE_SID=${FIRST_SID}; ${TNS_ADMIN_EXPORT} export DIAG_ADR_ENABLED=OFF; export TRACE_LEVEL_CLIENT=OFF; export ADR_BASE=/tmp; export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
 echo "Log gerado em: ${LOG_FILE}"
+
+awk '
+/crosschecked backup piece: found to be/ {
+    match(\$0, /found to be '\''[A-Z]+'\''/)
+    status = substr(\$0, RSTART + 13, RLENGTH - 14)
+    total++
+    status_count[status]++
+}
+/deleted backup piece/ { deleted++ }
+/Crosschecked [0-9]+ objects/ {
+    for(i=1; i<=NF; i++) { if (\$i ~ /^[0-9]+$/) rman_total = \$i }
+}
+END {
+    print ""
+    print "===================================================="
+    print "            RESUMO DO RMAN CROSSCHECK               "
+    print "===================================================="
+    printf "Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
+    printf "  - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
+    printf "  - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
+    print "----------------------------------------------------"
+    printf "Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
+    print "===================================================="
+}
+' "${LOG_FILE}"
 
 EOF
 
