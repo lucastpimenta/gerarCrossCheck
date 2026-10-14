@@ -48,26 +48,25 @@ DELETE NOPROMPT EXPIRED BACKUP;
 
 ## 🔧 Instalação
 
-Como o script deve ser executado como `root`, baixe diretamente no servidor desejado.
+Execute como `root` no servidor desejado.
 
-### Via Python 3 (Validado no IBM AIX)
+### Método Recomendado (Python 3 - IBM AIX)
 
 ```bash
 python3 -c "import urllib.request; urllib.request.urlretrieve('[https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh)')"
+```
+
+```bash
 chmod 755 gerarCrossCheck.sh
 ```
 
-### Via cURL (Linux / ambientes com curl)
+### Método Alternativo (cURL - Linux)
 
 ```bash
 curl -sSL [https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh) -o gerarCrossCheck.sh
-chmod 755 gerarCrossCheck.sh
 ```
 
-### Via Python 2 (ambientes legados)
-
 ```bash
-python -c "import urllib2, ssl; ctx = ssl._create_unverified_context(); open('gerarCrossCheck.sh', 'w').write(urllib2.urlopen('[https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh)', context=ctx).read())"
 chmod 755 gerarCrossCheck.sh
 ```
 
@@ -195,7 +194,7 @@ GitHub: [https://github.com/lucastpimenta](https://github.com/lucastpimenta)
 - Desativação do tracing excessivo do cliente Oracle ADR (`DIAG_ADR_ENABLED=OFF` e `TRACE_LEVEL_CLIENT=OFF`), impedindo crescimento de arquivos `.trc` na partição `/oracle`.
 - Redirecionamento de diagnósticos residuais para `/tmp` (`ADR_BASE=/tmp`).
 - Adição de bloco analisador `awk` compatível com AIX/Linux no launcher para exibição automática de resumo de peças avaliadas, disponíveis e deletadas.
-- Atualização do método de download via `python3` com `urllib.request.urlretrieve` validado para IBM AIX.
+- Atualização do método de download via `python3` com comando isolado para IBM AIX.
 
 ### v3.0
 
