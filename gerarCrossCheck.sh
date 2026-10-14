@@ -2,14 +2,14 @@
 
 ###############################################################################
 # Script : gerarCrossCheck.sh
-# Execução : Como ROOT
+# Execucao : Como ROOT
 # Objetivo : Gerador interativo de scripts RMAN e Launcher para CrossCheck
-#            compatível com Veritas NetBackup (Single Instance e RAC).
+#            compativel com Veritas NetBackup (Single Instance e RAC).
 ###############################################################################
 
-# Validação de execução como root
+# Validacao de execucao como root
 if [ "$(id -u)" -ne 0 ]; then
-    echo "ERRO: Este script gerador deve ser executado como root."
+    echo "ERRO: Este script deve ser executado como root."
     exit 1
 fi
 
@@ -28,7 +28,7 @@ case "$(uname -s)" in
         BASH_BIN="/usr/bin/bash"
         ;;
     *)
-        echo "ERRO: Sistema Operacional '$(uname -s)' não suportado."
+        echo "ERRO: Sistema Operacional '$(uname -s)' nao suportado."
         exit 1
         ;;
 esac
@@ -37,32 +37,19 @@ echo "============================================================"
 echo "    GERADOR DE SCRIPTS RMAN CROSSCHECK (NETBACKUP)"
 echo "============================================================"
 
-# Usuário de banco no SO
+# 1. Servidor Primario / Master do NetBackup
+read -p "Servidor Primario / Master do NetBackup: " NB_PRIMARY
+
+# 2. Usuario Oracle no SO
 while true; do
-    read -p "Usuário do Banco no SO (ex: oracle): " DB_USER
+    read -p "Usuario Oracle no SO: " DB_USER
     if id "$DB_USER" >/dev/null 2>&1; then
         break
     else
-        echo "Usuário '$DB_USER' não encontrado no sistema. Tente novamente."
+        echo "Usuario '$DB_USER' nao existe. Tente novamente."
     fi
 done
 
-# ORACLE_HOME validado diretamente pelo usuário do banco
-while true; do
-    read -p "ORACLE_HOME (ex: /u01/app/oracle/product/19.0.0/dbhome_1): " DB_HOME
-    
-    su - "${DB_USER}" -c "[ -d '${DB_HOME}' ] && [ -x '${DB_HOME}/bin/rman' ]" >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo "-> ORACLE_HOME validado com sucesso para o usuário ${DB_USER}."
-        break
-    else
-        echo "ERRO: O usuário ${DB_USER} não tem acesso ao diretório ou ao binário ${DB_HOME}/bin/rman."
-    fi
-done
-
-read -p "Servidor Primário / Master do NetBackup: " NB_PRIMARY
-
-# Obtém a pasta home do usuário
 USER_HOME=$(su - "${DB_USER}" -c 'pwd')
 SCRIPT_DIR="${USER_HOME}/script"
 
@@ -73,53 +60,14 @@ chmod 750 "${SCRIPT_DIR}"
 LAUNCHER="/usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh"
 mkdir -p "$(dirname "${LAUNCHER}")"
 
+# 3. Topologia do Banco de Dados
 echo ""
-echo "Selecione a topologia do banco de dados:"
+echo "Topologia do banco de dados:"
 echo "  1) Single Instance"
 echo "  2) Oracle RAC"
-read -p "Opção [1 ou 2]: " TOPOLOGIA
+read -p "Opcao: " TOPOLOGIA
 
-echo ""
-echo "Método de autenticação / conexão no banco:"
-if [ "$TOPOLOGIA" == "1" ]; then
-    echo "  1) Autenticação SO (/ as sysdba)"
-    echo "  2) TNS Alias (com ou sem Wallet)"
-else
-    echo "  1) Oracle Wallet SEM TNS (Connect Descriptor SCAN / Padrão NetBackup)"
-    echo "  2) TNS Alias (utilizando tnsnames.ora existente)"
-fi
-read -p "Opção de conexão: " METODO_CONN
-
-# Tratamento de Wallet
-WALLET_PATH=""
-TNS_ADMIN_EXPORT=""
-
-if [ "$TOPOLOGIA" == "2" ] && [ "$METODO_CONN" == "1" ]; then
-    USAR_WALLET="s"
-else
-    read -p "Utiliza Oracle Wallet para este banco? [s/n]: " USAR_WALLET
-fi
-
-if [[ "$USAR_WALLET" =~ ^[sS]$ ]]; then
-    while true; do
-        read -p "Caminho do diretório da Wallet: " WALLET_PATH
-        su - "${DB_USER}" -c "[ -r '${WALLET_PATH}/cwallet.sso' -o -r '${WALLET_PATH}/ewallet.p12' ]" >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            echo "-> Credenciais de Wallet validadas para ${DB_USER}."
-            TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
-            break
-        else
-            echo "AVISO: O usuário ${DB_USER} não conseguiu ler o arquivo de wallet em '${WALLET_PATH}'."
-            read -p "Deseja continuar com esse caminho mesmo assim? [s/n]: " FORCAR_W
-            if [[ "$FORCAR_W" =~ ^[sS]$ ]]; then
-                TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
-                break
-            fi
-        fi
-    done
-fi
-
-# Inicialização do script Launcher
+# Inicializacao do Launcher
 cat > "${LAUNCHER}" <<EOF
 #!${BASH_BIN}
 # Launcher gerado para CrossCheck RMAN / NetBackup
@@ -129,18 +77,42 @@ if [ "$TOPOLOGIA" == "1" ]; then
     ###########################################################################
     # SINGLE INSTANCE
     ###########################################################################
-    read -p "Informe o ORACLE_SID: " DB_SID
-    read -p "Nome do Cliente no NetBackup (Hostname ou IP do nó): " NB_CLIENT
+    while true; do
+        read -p "ORACLE_HOME: " DB_HOME
+        su - "${DB_USER}" -c "[ -d '${DB_HOME}' ] && [ -x '${DB_HOME}/bin/rman' ]" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            break
+        else
+            echo "ORACLE_HOME invalido ou binario rman inacessivel para '${DB_USER}'."
+        fi
+    done
+
+    read -p "ORACLE_SID: " DB_SID
+    read -p "Client name no NetBackup: " NB_CLIENT
+
+    echo ""
+    echo "Metodo de conexao:"
+    echo "  1) Autenticacao SO (/ as sysdba)"
+    echo "  2) TNS Alias com Wallet"
+    echo "  3) TNS Alias sem Wallet"
+    read -p "Opcao: " METODO_CONN
+
+    WALLET_PATH=""
+    TNS_ADMIN_EXPORT=""
+    if [ "$METODO_CONN" == "2" ]; then
+        read -p "Oracle Wallet path: " WALLET_PATH
+        TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+        read -p "TNS alias: " TNS_ALIAS
+        CONNECT_CMD="CONNECT TARGET /@${TNS_ALIAS};"
+    elif [ "$METODO_CONN" == "3" ]; then
+        read -p "String de conexao: " USER_CONN
+        CONNECT_CMD="CONNECT TARGET ${USER_CONN};"
+    else
+        CONNECT_CMD="CONNECT TARGET /;"
+    fi
 
     RMAN_FILE="${SCRIPT_DIR}/crosscheck_${DB_SID}.rmn"
     LOG_FILE="${SCRIPT_DIR}/crosscheck_${DB_SID}.log"
-
-    if [ "$METODO_CONN" == "1" ]; then
-        CONNECT_CMD="CONNECT TARGET /;"
-    else
-        read -p "Alias TNS de conexão: " TNS_ALIAS
-        CONNECT_CMD="CONNECT TARGET /@${TNS_ALIAS};"
-    fi
 
     cat > "${RMAN_FILE}" <<EOF
 ${CONNECT_CMD}
@@ -176,46 +148,66 @@ EOF
 
 else
     ###########################################################################
-    # ORACLE RAC
+    # ORACLE RAC - ORDEM DAS TELAS NETBACKUP
     ###########################################################################
-    read -p "Database Name ou Unique Name: " DB_NAME
-    read -p "Identificador de Catálogo no NetBackup (NB_ORA_CATALOG_HOST / deixe vazio se não houver): " NB_CAT_HOST
-    read -p "Quantidade de nós/instâncias no RAC: " TOTAL_NODES
+
+    # --- Tela 1: Edit database ---
+    read -p "Enter database name / Database unique name: " DB_NAME
+    read -p "Database ID: " DB_ID
+    
+    # Montagem automatica do catalogo
+    NB_ORA_CATALOG_HOST="${DB_NAME}_${DB_ID}"
+
+    read -p "Scan name: " SCAN_NAME
+    read -p "Service name: " SERVICE_NAME
+    read -p "Port: " SCAN_PORT
+    read -p "Oracle Wallet path: " WALLET_PATH
+
+    TNS_ADMIN_EXPORT=""
+    if [ -n "${WALLET_PATH}" ]; then
+        su - "${DB_USER}" -c "[ -r '${WALLET_PATH}/cwallet.sso' -o -r '${WALLET_PATH}/ewallet.p12' ]" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+        else
+            echo "AVISO: Arquivos da Wallet nao encontrados em '${WALLET_PATH}' para o usuario '${DB_USER}'."
+            TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+        fi
+    fi
+
+    # --- Tela 2: Instances ---
+    read -p "Quantidade de instancias (linhas da tabela): " TOTAL_NODES
 
     declare -a ARR_SID
     declare -a ARR_CLIENT
+    declare -a ARR_HOME
 
     for (( i=1; i<=TOTAL_NODES; i++ ))
     do
-        echo "--- Instância / Nó $i ---"
-        read -p "  ORACLE_SID da instância $i: " NODE_SID
-        read -p "  Nome do Cliente no NetBackup para o nó $i (Hostname ou IP): " NODE_CLIENT
+        echo "--- Instancia $i ---"
+        read -p "Instance name: " NODE_SID
+        read -p "Client name: " NODE_CLIENT
+        read -p "Oracle home: " NODE_HOME
+        
         ARR_SID+=("$NODE_SID")
         ARR_CLIENT+=("$NODE_CLIENT")
+        ARR_HOME+=("$NODE_HOME")
     done
+
+    # Validacao do ORACLE_HOME do no local
+    LOCAL_HOME="${ARR_HOME[0]}"
+    su - "${DB_USER}" -c "[ -d '${LOCAL_HOME}' ] && [ -x '${LOCAL_HOME}/bin/rman' ]" >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "AVISO: ORACLE_HOME local '${LOCAL_HOME}' nao encontrado ou binario rman inacessivel para '${DB_USER}'."
+    fi
 
     FIRST_SID="${ARR_SID[0]}"
     RMAN_FILE="${SCRIPT_DIR}/crosscheck_rac_${DB_NAME}.rmn"
     LOG_FILE="${SCRIPT_DIR}/crosscheck_rac_${DB_NAME}.log"
 
-    if [ "$METODO_CONN" == "1" ]; then
-        read -p "Hostname ou FQDN do SCAN: " SCAN_HOST
-        read -p "Porta do SCAN [Padrão 1521]: " SCAN_PORT
-        SCAN_PORT=${SCAN_PORT:-1521}
-        read -p "Service Name do banco: " SRV_NAME
-        
-        CONNECT_CMD="CONNECT TARGET '/@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${SCAN_HOST})(PORT=${SCAN_PORT}))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=${SRV_NAME})(INSTANCE_NAME=${FIRST_SID}))) as sysbackup';"
-    else
-        read -p "Alias TNS existente para conexão: " TNS_ALIAS
-        CONNECT_CMD="CONNECT TARGET /@${TNS_ALIAS};"
-    fi
+    # Monta a conexao utilizando o descritor SCAN
+    CONNECT_CMD="CONNECT TARGET '/@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${SCAN_NAME})(PORT=${SCAN_PORT}))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=${SERVICE_NAME})(INSTANCE_NAME=${FIRST_SID}))) as sysbackup';"
 
-    SEND_DIRECTIVE="NB_ORA_SERV=${NB_PRIMARY}"
-    if [ -n "${NB_CAT_HOST}" ]; then
-        SEND_DIRECTIVE="${SEND_DIRECTIVE},NB_ORA_CATALOG_HOST=${NB_CAT_HOST}"
-    fi
-
-    # Monta arquivo RMAN com um canal por nó do RAC
+    # Montagem do script RMAN
     {
         echo "${CONNECT_CMD}"
         echo ""
@@ -226,18 +218,19 @@ else
             CH_NUM=$((i+1))
             CUR_SID="${ARR_SID[$i]}"
             CUR_CLIENT="${ARR_CLIENT[$i]}"
+            CUR_HOME="${ARR_HOME[$i]}"
             
             echo "  ALLOCATE CHANNEL ch${CH_NUM} DEVICE TYPE SBT_TAPE"
             echo "  PARMS 'SBT_LIBRARY=${SBT_LIBRARY},"
             echo "  ENV=("
-            echo "    NB_ORA_HOME=${DB_HOME},"
+            echo "    NB_ORA_HOME=${CUR_HOME},"
             echo "    NB_ORA_SID=${CUR_SID},"
             echo "    NB_ORA_CLIENT=${CUR_CLIENT}"
             echo "  )';"
         done
 
         echo ""
-        echo "  SEND '${SEND_DIRECTIVE}';"
+        echo "  SEND 'NB_ORA_SERV=${NB_PRIMARY},NB_ORA_CATALOG_HOST=${NB_ORA_CATALOG_HOST}';"
         echo ""
         echo "  CROSSCHECK BACKUP;"
         echo "  DELETE NOPROMPT EXPIRED BACKUP;"
@@ -253,19 +246,20 @@ else
         echo "EXIT;"
     } > "${RMAN_FILE}"
 
+    # Launcher
     cat >> "${LAUNCHER}" <<EOF
 
 echo "===================================================="
-echo "CrossCheck Oracle RAC: ${DB_NAME} (Nó Primário: ${FIRST_SID})"
+echo "CrossCheck Oracle RAC: ${DB_NAME} (No Primario: ${FIRST_SID})"
 echo "===================================================="
-su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${DB_HOME}; export ORACLE_SID=${FIRST_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
+su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${LOCAL_HOME}; export ORACLE_SID=${FIRST_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
 echo "Log gerado em: ${LOG_FILE}"
 
 EOF
 
 fi
 
-# Ajuste seguro de permissões
+# Ajuste seguro de permissoes
 chown "${DB_USER}" "${RMAN_FILE}"
 chmod 640 "${RMAN_FILE}"
 chmod 755 "${LAUNCHER}"
