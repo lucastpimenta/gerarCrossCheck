@@ -1,41 +1,38 @@
 # gerarCrossCheck.sh
 
-Script para automatizar a criação de rotinas RMAN CrossCheck em ambientes Oracle integrados ao Veritas NetBackup.
+Script interativo para automatizar a geração de rotinas RMAN CrossCheck em ambientes Oracle integrados ao Veritas NetBackup.
 
-O objetivo é simplificar a validação e limpeza de backups expirados registrados no RMAN, utilizando autenticação por Oracle Wallet ou autenticação local do sistema operacional.
+O objetivo é simplificar a validação e a limpeza de backups expirados registrados no repositório do RMAN, suportando ambientes **Single Instance** e **Oracle RAC** com autenticação via Oracle Wallet (com ou sem TNS) ou autenticação local do sistema operacional.
 
 ---
 
 ## 📦 O que o Script Faz
 
-- Detecta automaticamente o sistema operacional (Linux, Solaris ou AIX).
-- Configura automaticamente a biblioteca SBT (`libobk`) adequada para o NetBackup.
-- Gera o launcher:
+- Detecta automaticamente o sistema operacional (**Linux**, **Solaris** ou **AIX**).
+- Configura dinamicamente a biblioteca SBT (`libobk`) adequada para cada plataforma:
+  - Linux: `/usr/openv/netbackup/bin/libobk.so64`
+  - Solaris: `/usr/openv/netbackup/bin/libobk.so64.1`
+  - AIX: `/usr/openv/netbackup/bin/libobk.a64(shr.o)`
+- Executa validações de permissões diretamente com o usuário Oracle informado (`$DB_USER`), mesmo sendo disparado como `root`.
+- Gera o inicializador executável (launcher):
 
 ```text
 /usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh
 ```
 
-- Gera um arquivo RMAN para cada SID informado:
-
-```text
-~/script/crosscheck_<SID>.rmn
-```
-
-- Configura automaticamente as variáveis de ambiente Oracle durante a execução.
-- Suporta autenticação:
-  - Oracle Wallet por banco
-  - Local OS Authentication (`CONNECT TARGET '/'`)
-- Permite utilizar múltiplos bancos com wallets diferentes na mesma execução.
-- Executa as rotinas:
+- Gera o arquivo de comandos RMAN com permissões restritas (640):
+  - **Single Instance:** `~/script/crosscheck_<SID>.rmn`
+  - **Oracle RAC:** `~/script/crosscheck_rac_<DB_NAME>.rmn`
+- No **Oracle RAC**, aloca canais simultâneos para todos os nós participantes com seus respectivos `NB_ORA_CLIENT`, evitando falsos positivos de peças expiradas geradas por outros nós.
+- Monta automaticamente a diretiva `NB_ORA_CATALOG_HOST` com base no `Database Name` e `Database ID` (`<DB_NAME>_<DB_ID>`), integrando-se nativamente à Web UI do NetBackup.
+- Executa as instruções:
 
 ```rman
 CROSSCHECK BACKUP;
-
-DELETE EXPIRED BACKUP;
+DELETE NOPROMPT EXPIRED BACKUP;
 ```
 
-- Gera um log separado para cada banco Oracle.
+- Direciona as saídas para logs dedicados no diretório `~/script/`.
 
 ---
 
@@ -43,78 +40,68 @@ DELETE EXPIRED BACKUP;
 
 - Bash
 - Oracle RMAN
-- Veritas NetBackup
+- Veritas NetBackup (10.x / 9.x)
 
 ---
 
 ## 🔧 Instalação
 
-### Download do Script
+Como o script deve ser executado como `root`, baixe diretamente no servidor desejado.
+
+### Via cURL (se disponível)
 
 ```bash
-curl -O https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh
+curl -sSL [https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh) -o /gerarCrossCheck.sh
+chmod 755 /gerarCrossCheck.sh
+```
+
+### Via Python 3 (alternativa para AIX sem curl/wget)
+
+```bash
+python3 -c "import urllib.request, ssl; ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE; open('/gerarCrossCheck.sh', 'wb').write(urllib.request.urlopen('[https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh)', context=ctx).read())"
+chmod 755 /gerarCrossCheck.sh
+```
+
+### Via Python 2 (ambientes legados)
+
+```bash
+python -c "import urllib2, ssl; ctx = ssl._create_unverified_context(); open('/gerarCrossCheck.sh', 'w').write(urllib2.urlopen('[https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh](https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh)', context=ctx).read())"
+chmod 755 /gerarCrossCheck.sh
 ```
 
 ---
 
 ## 🚀 Como Usar
 
-### Sintaxe
+Execute o gerador como `root`:
 
 ```bash
-sudo bash gerarCrossCheck.sh \
-<NBU_PRIMARY> \
-<USUARIO_ORACLE> \
-<ORACLE_HOME> \
-<SID1:WALLET|NONE> \
-[SID2:WALLET|NONE] ...
+./gerarCrossCheck.sh
 ```
 
-### Exemplo com Oracle Wallet
+O script é totalmente interativo e conduz o preenchimento de acordo com a topologia escolhida.
 
-```bash
-sudo bash gerarCrossCheck.sh \
-nbu_primary.empresa.local \
-oracle \
-/u01/app/oracle/product/19.0.0/dbhome_1 \
-PRD:/u01/wallets/prd \
-HML:/u01/wallets/hml
-```
+### Fluxo para Oracle RAC (Alinhado à Web UI do NetBackup)
 
-### Exemplo sem Oracle Wallet
+As perguntas são organizadas na ordem visual exata das telas de administração do NetBackup:
 
-```bash
-sudo bash gerarCrossCheck.sh \
-nbu_primary.empresa.local \
-oracle \
-/u01/app/oracle/product/19.0.0/dbhome_1 \
-PRD:NONE \
-DEV:NONE
-```
-
-### Exemplo misto
-
-```bash
-sudo bash gerarCrossCheck.sh \
-nbu_primary.empresa.local \
-oracle \
-/u01/app/oracle/product/19.0.0/dbhome_1 \
-PRD:/u01/wallets/prd \
-HML:/u01/wallets/hml \
-DEV:NONE
-```
-
----
-
-## 📋 Parâmetros
-
-| Parâmetro | Descrição |
-|-----------|-----------|
-| `NBU_PRIMARY` | FQDN do NetBackup Primary Server |
-| `USUARIO_ORACLE` | Usuário proprietário do Oracle |
-| `ORACLE_HOME` | Oracle Home da instância |
-| `SID:WALLET` | SID Oracle seguido do caminho do Wallet |
-| `SID:NONE` | Utiliza autenticação local do sistema operacional para o SID informado |
+1. **Informações Gerais:**
+   - Servidor Primário / Master do NetBackup
+   - Usuário Oracle no SO (valida se o usuário existe)
+   - Topologia: selecionar `2) Oracle RAC`
+2. **Tela "Edit database" (Configurações Gerais):**
+   - Enter database name / Database unique name
+   - Database ID *(o script concatena `<DB_NAME>_<DB_ID>` para o catálogo)*
+   - Scan name
+   - Service name
+   - Port
+   - Oracle Wallet path *(validação de leitura das credenciais pelo usuário Oracle)*
+3. **Tela "Instances" (Tabela de Nós do RAC):**
+   - Quantidade de instâncias
+   - Para cada nó:
+     - Instance name
+     - Client name (IP ou Hostname registrado no NetBackup)
+     - Oracle home
 
 ---
 
@@ -126,38 +113,35 @@ DEV:NONE
 /usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh
 ```
 
-Responsável por executar o RMAN para todos os bancos informados.
+Script responsável por exportar as variáveis de ambiente necessárias (`ORACLE_HOME`, `ORACLE_SID`, `TNS_ADMIN`, `PATH`) sob a identidade do usuário do banco e chamar o binário `rman`.
 
 ### Scripts RMAN
 
-```text
-~/script/crosscheck_<SID>.rmn
-```
+- **Single Instance:** `~/script/crosscheck_<SID>.rmn`
+- **Oracle RAC:** `~/script/crosscheck_rac_<DB_NAME>.rmn`
 
-### Logs
+### Logs de Execução
 
-```text
-~/script/crosscheck_<SID>.log
-```
+- **Single Instance:** `~/script/crosscheck_<SID>.log`
+- **Oracle RAC:** `~/script/crosscheck_rac_<DB_NAME>.log`
 
 ---
 
 ## 🤖 Automatização
 
-O script foi projetado para ser utilizado em:
+O launcher gerado em `/usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh` pode ser chamado diretamente por:
 
-- Jobs do NetBackup
-- Cron Jobs
-- Agendadores corporativos
-- Rotinas periódicas de manutenção RMAN
+- Jobs agendados no NetBackup (Application Backup / User Directed)
+- Agendador do sistema operacional (`crontab`)
+- Ferramentas corporativas de automação (Control-M, Rundeck, Ansible)
 
 ---
 
 ## ✅ Sistemas Operacionais Suportados
 
-- Linux
-- Solaris
-- AIX
+- IBM AIX (64-bit)
+- Linux (RHEL, SLES, Oracle Linux)
+- Oracle Solaris (SunOS)
 
 ---
 
@@ -165,130 +149,55 @@ O script foi projetado para ser utilizado em:
 
 - Oracle Database 19c ou superior
 - Oracle RMAN
-- Veritas NetBackup
-- Usuário Oracle configurado
-- Oracle Wallet configurado (opcional)
-
----
-
-## 📝 Observações
-
-### Oracle Wallet
-
-Para um SID configurado com Wallet:
-
-```bash
-PRD:/u01/wallets/prd
-```
-
-o script utilizará:
-
-```rman
-CONNECT TARGET '/@PRD AS SYSBACKUP';
-```
-
-e exportará automaticamente:
-
-```bash
-export TNS_ADMIN=/u01/wallets/prd
-```
-
-### Autenticação Local
-
-Para um SID configurado com:
-
-```bash
-PRD:NONE
-```
-
-o script utilizará:
-
-```rman
-CONNECT TARGET '/';
-```
-
-sem necessidade de Oracle Wallet.
-
-### Suporte a Ambientes Heterogêneos
-
-É possível executar múltiplos bancos na mesma chamada utilizando métodos de autenticação diferentes:
-
-```text
-PRD:/wallet/prd
-HML:/wallet/hml
-DEV:NONE
-```
-
-Cada SID terá seu próprio arquivo RMAN, variáveis de ambiente e método de conexão.
-
----
-
-## 🆘 Suporte
-
-Antes de abrir uma issue ou solicitar suporte, valide:
-
-- ORACLE_HOME configurado corretamente
-- Oracle Wallet funcional (quando utilizado)
-- Biblioteca NetBackup (`libobk`) disponível
-- Conectividade RMAN com a instância Oracle
-- Permissões do usuário Oracle
-
-Os logs são gravados em:
-
-```text
-~/script/crosscheck_<SID>.log
-```
+- Agente Veritas NetBackup instalado e configurado
+- Usuário proprietário do Oracle configurado no sistema operacional
+- Oracle Wallet configurada (quando aplicável)
 
 ---
 
 ## 🌟 Contribuições
 
-Contribuições são sempre bem-vindas.
-
-Sinta-se à vontade para abrir Issues ou Pull Requests com melhorias, correções ou novas funcionalidades.
+Contribuições são sempre bem-vindas. Sinta-se à vontade para abrir Issues ou Pull Requests com sugestões, melhorias e correções.
 
 ---
 
 ## ✒️ Autor
 
-**Lucas Pimenta**
-
-GitHub: <https://github.com/lucastpimenta>
+**Lucas Pimenta**  
+GitHub: [https://github.com/lucastpimenta](https://github.com/lucastpimenta)
 
 ---
 
-## 📌 Histórico Recente
+## 📌 Histórico de Versões
+
+### v3.0
+
+- Reformulação completa da ferramenta, substituindo passagem manual de parâmetros por interface interativa em linha de comando.
+- Suporte nativo completo a **Oracle RAC** com balanceamento e alocação de canais para todos os nós participantes.
+- Ordem dos prompts no RAC alinhada à interface Web UI do NetBackup (*Edit database* e *Instances*).
+- Montagem automática do parâmetro `NB_ORA_CATALOG_HOST` a partir do `Database Name` e `Database ID`.
+- Suporte a conexões via **Oracle Wallet Connect Descriptors (SCAN)** sem necessidade de arquivo `tnsnames.ora`.
+- Validação contextual de permissões em diretórios (`ORACLE_HOME`, `rman` e Wallet) executada diretamente sob a identidade do usuário Oracle, evitando inconsistências ao rodar como `root`.
+- Limpeza automática de backups expirados com `DELETE NOPROMPT EXPIRED BACKUP`.
 
 ### v2.3
 
-- Removido o parâmetro NB_ORA_CLIENT
+- Removido o parâmetro `NB_ORA_CLIENT`.
 
 ### v2.2
 
-- Adicionado suporte a à sintaxe NBU_PRIMARY
+- Adicionado suporte à sintaxe `NBU_PRIMARY`.
 
 ### v2.1
 
 - Adicionado suporte a múltiplos Oracle Wallets.
-- Cada SID pode utilizar um Wallet diferente.
-- Adicionado suporte à sintaxe `SID:WALLET`.
-- Adicionado suporte à sintaxe `SID:NONE`.
-- Possibilidade de misturar autenticação por Wallet e autenticação local na mesma execução.
+- Suporte à sintaxe `SID:WALLET` e `SID:NONE`.
 
 ### v2.0
 
-- Adicionado suporte a Oracle Wallet.
-- Adicionado suporte a autenticação local (`NONE`).
+- Adicionado suporte a Oracle Wallet e autenticação local (`NONE`).
 - Compatibilidade validada para Linux, Solaris e AIX.
-- Correção da sintaxe RMAN para Oracle 19c.
-- Correção de problemas de execução em AIX relacionados a shell e quoting.
-- Inclusão da rotina:
-
-```rman
-CROSSCHECK BACKUP;
-
-DELETE EXPIRED BACKUP;
-```
+- Correção de problemas de shell e quoting no AIX.
 
 ### v1.0
 
