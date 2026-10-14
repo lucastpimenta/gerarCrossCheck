@@ -2,7 +2,7 @@
 
 ###############################################################################
 # Script   : gerarCrossCheck.sh
-# Versao   : 3.2
+# Versao   : 3.3
 # Execucao : Como ROOT
 # Objetivo : Gerador de scripts RMAN e Launcher para CrossCheck (NetBackup).
 # Suporte  : Interativo e Nao-Interativo (--silent / --config).
@@ -59,17 +59,18 @@ Opcoes para Modo Silencioso:
   --sid <sid>                  ORACLE_SID (apenas Single Instance)
   --client <nome_client>       Client name no NetBackup (apenas Single Instance)
   --method <1|2|3>             Metodo de conexao Single: 1=SO, 2=Wallet, 3=String
-  --dbname <nome>              Database Name / Unique Name (apenas RAC)
+  --dbname <nome>              Database Name (apenas RAC)
+  --dbunique <nome>            Database Unique Name (apenas RAC, padrao: dbname)
   --dbid <id>                  Database ID (apenas RAC)
   --scan <scan_name>           SCAN host do RAC
-  --service <service_name>     Service Name do RAC (padrao: dbname)
+  --service <service_name>     Service Name do RAC (padrao: dbunique)
   --port <porta>               Porta do Listener (padrao: 1521)
   --wallet <caminho>           Diretorio do Oracle Wallet (se metodo 2 ou RAC)
   --alias <tns_alias>          TNS alias (se metodo 2 em Single Instance)
   --conn-str <string>          String de conexao (se metodo 3 em Single Instance)
   --nodes "<lista_nos>"        Lista de nos do RAC separados por virgula:
                                Formato: "SID:CLIENT:HOME,SID:CLIENT:HOME"
-                               Exemplo: "BWP001:10.27.241.210:/oracle/BWP/19.0.0,BWP002:10.27.241.215:/oracle/BWP/19.0.0"
+                               Exemplo: "ORCL001:192.168.1.10:/oracle/19.0.0,ORCL002:192.168.1.11:/oracle/19.0.0"
   -h, --help                   Exibe esta ajuda
 
 EOF
@@ -95,6 +96,7 @@ while [ $# -gt 0 ]; do
         --client) NB_CLIENT="$2"; shift 2 ;;
         --method) METODO_CONN="$2"; shift 2 ;;
         --dbname) DB_NAME="$2"; shift 2 ;;
+        --dbunique) DB_UNIQUE_NAME="$2"; shift 2 ;;
         --dbid) DB_ID="$2"; shift 2 ;;
         --scan) SCAN_NAME="$2"; shift 2 ;;
         --service) SERVICE_NAME="$2"; shift 2 ;;
@@ -121,7 +123,7 @@ if [ -n "$CONFIG_FILE" ]; then
 fi
 
 echo "============================================================"
-echo "    GERADOR DE SCRIPTS RMAN CROSSCHECK (NETBACKUP) v3.2"
+echo "    GERADOR DE SCRIPTS RMAN CROSSCHECK (NETBACKUP) v3.3"
 echo "============================================================"
 
 # 1. Master Server
@@ -234,7 +236,11 @@ if [ "$TOPOLOGIA" == "1" ]; then
             done
             read -p "TNS alias: " TNS_ALIAS
         fi
-        TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+
+        # Valida se existe sqlnet.ora dentro da pasta da Wallet
+        if [ -f "${WALLET_PATH}/sqlnet.ora" ]; then
+            TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+        fi
         CONNECT_CMD="CONNECT TARGET /@${TNS_ALIAS};"
     elif [ "$METODO_CONN" == "3" ]; then
         if [ $SILENT -eq 1 ]; then
@@ -274,11 +280,11 @@ EOF
 
     cat >> "${LAUNCHER}" <<EOF
 
-echo "INF - ===================================================="
-echo "INF - CrossCheck Single Instance: ${DB_SID}"
-echo "INF - ===================================================="
+echo "===================================================="
+echo "CrossCheck Single Instance: ${DB_SID}"
+echo "===================================================="
 su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${DB_HOME}; export ORACLE_SID=${DB_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
-echo "INF - Log gerado em: ${LOG_FILE}"
+echo "Log gerado em: ${LOG_FILE}"
 
 awk '
 /crosschecked backup piece: found to be/ {
@@ -292,15 +298,16 @@ awk '
     for(i=1; i<=NF; i++) { if (\$i ~ /^[0-9]+$/) rman_total = \$i }
 }
 END {
-    print "INF - ===================================================="
-    print "INF -             RESUMO DO RMAN CROSSCHECK               "
-    print "INF - ===================================================="
-    printf "INF - Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
-    printf "INF -   - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
-    printf "INF -   - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
-    print "INF - ----------------------------------------------------"
-    printf "INF - Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
-    print "INF - ===================================================="
+    print ""
+    print "===================================================="
+    print "            RESUMO DO RMAN CROSSCHECK               "
+    print "===================================================="
+    printf "Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
+    printf "  - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
+    printf "  - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
+    print "----------------------------------------------------"
+    printf "Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
+    print "===================================================="
 }
 ' "${LOG_FILE}"
 
@@ -312,12 +319,13 @@ else
     ###########################################################################
     if [ $SILENT -eq 1 ]; then
         [ -z "$DB_NAME" ] && { echo "ERRO: --dbname e obrigatorio para RAC."; exit 1; }
+        DB_UNIQUE_NAME=${DB_UNIQUE_NAME:-$DB_NAME}
         [ -z "$DB_ID" ] && { echo "ERRO: --dbid e obrigatorio para RAC."; exit 1; }
         [ -z "$SCAN_NAME" ] && { echo "ERRO: --scan e obrigatorio para RAC."; exit 1; }
         [ -z "$WALLET_PATH" ] && { echo "ERRO: --wallet e obrigatorio para RAC."; exit 1; }
         [ -z "$RAC_NODES" ] && { echo "ERRO: --nodes e obrigatorio em silent para RAC."; exit 1; }
 
-        SERVICE_NAME=${SERVICE_NAME:-$DB_NAME}
+        SERVICE_NAME=${SERVICE_NAME:-$DB_UNIQUE_NAME}
         SCAN_PORT=${SCAN_PORT:-1521}
 
         su - "${DB_USER}" -c "[ -r '${WALLET_PATH}/cwallet.sso' -o -r '${WALLET_PATH}/ewallet.p12' ]" >/dev/null 2>&1
@@ -326,11 +334,14 @@ else
             exit 1
         fi
     else
-        read -p "Enter database name / Database unique name: " DB_NAME
+        read -p "Enter database name: " DB_NAME
+        read -p "Database unique name [${DB_NAME}]: " DB_UNIQUE_NAME
+        DB_UNIQUE_NAME=${DB_UNIQUE_NAME:-$DB_NAME}
+
         read -p "Database ID: " DB_ID
         read -p "Scan name: " SCAN_NAME
-        read -p "Service name [${DB_NAME}]: " SERVICE_NAME
-        SERVICE_NAME=${SERVICE_NAME:-$DB_NAME}
+        read -p "Service name [${DB_UNIQUE_NAME}]: " SERVICE_NAME
+        SERVICE_NAME=${SERVICE_NAME:-$DB_UNIQUE_NAME}
         read -p "Port [1521]: " SCAN_PORT
         SCAN_PORT=${SCAN_PORT:-1521}
 
@@ -345,8 +356,14 @@ else
         done
     fi
 
-    NB_ORA_CATALOG_HOST="${DB_NAME}_${DB_ID}"
-    TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+    # Montagem do catalogo oficial NetBackup: databaseUniqueName_databaseID
+    NB_ORA_CATALOG_HOST="${DB_UNIQUE_NAME}_${DB_ID}"
+
+    # Valida se existe sqlnet.ora na Wallet; caso contrario, mantem o padrao da instalacao
+    TNS_ADMIN_EXPORT=""
+    if [ -f "${WALLET_PATH}/sqlnet.ora" ]; then
+        TNS_ADMIN_EXPORT="export TNS_ADMIN=${WALLET_PATH};"
+    fi
 
     declare -a ARR_SID
     declare -a ARR_CLIENT
@@ -355,7 +372,6 @@ else
     DB_NAME_UPPER=$(echo "${DB_NAME}" | tr '[:lower:]' '[:upper:]')
 
     if [ $SILENT -eq 1 ]; then
-        # Parse da string de nós (ex: "BWP001:10.27.241.210:/oracle/BWP/19.0.0,BWP002:10.27.241.215:/oracle/BWP/19.0.0")
         IFS=',' read -r -a NODE_LIST <<< "$RAC_NODES"
         TOTAL_NODES=${#NODE_LIST[@]}
         idx=1
@@ -366,7 +382,6 @@ else
                 ARR_CLIENT+=("$p2")
                 ARR_HOME+=("$p3")
             else
-                # Se passou apenas CLIENT:HOME, calcula o SID sequencial
                 DEFAULT_SID=$(printf "%s%03d" "${DB_NAME_UPPER}" "$idx")
                 ARR_SID+=("$DEFAULT_SID")
                 ARR_CLIENT+=("$p1")
@@ -377,13 +392,30 @@ else
     else
         read -p "Quantidade de instancias do RAC: " TOTAL_NODES
         PREV_HOME=""
+        PREV_SID=""
 
         for (( i=1; i<=TOTAL_NODES; i++ ))
         do
             echo "--- Instancia $i ---"
-            DEFAULT_SID=$(printf "%s%03d" "${DB_NAME_UPPER}" "$i")
+
+            if [ $i -eq 1 ]; then
+                DEFAULT_SID=$(printf "%s%03d" "${DB_NAME_UPPER}" "$i")
+            else
+                # Analisa o formato digitado no no anterior para derivar a proxima sugestao
+                if [[ "$PREV_SID" =~ ^(.*[^0-9])([0-9]+)$ ]]; then
+                    PREFIX="${BASH_REMATCH[1]}"
+                    NUM_STR="${BASH_REMATCH[2]}"
+                    PADDING=${#NUM_STR}
+                    NEXT_NUM=$(( 10#$NUM_STR + 1 ))
+                    DEFAULT_SID=$(printf "%s%0*d" "$PREFIX" "$PADDING" "$NEXT_NUM")
+                else
+                    DEFAULT_SID=$(printf "%s%03d" "${DB_NAME_UPPER}" "$i")
+                fi
+            fi
+
             read -p "Instance name [${DEFAULT_SID}]: " NODE_SID
             NODE_SID=${NODE_SID:-$DEFAULT_SID}
+            PREV_SID="${NODE_SID}"
 
             read -p "Client name: " NODE_CLIENT
 
@@ -455,11 +487,11 @@ else
 
     cat >> "${LAUNCHER}" <<EOF
 
-echo "INF - ===================================================="
-echo "INF - CrossCheck Oracle RAC: ${DB_NAME} (No Primario: ${FIRST_SID})"
-echo "INF - ===================================================="
+echo "===================================================="
+echo "CrossCheck Oracle RAC: ${DB_NAME} (No Primario: ${FIRST_SID})"
+echo "===================================================="
 su - ${DB_USER} -c "${BASH_BIN} -c 'export ORACLE_HOME=${LOCAL_HOME}; export ORACLE_SID=${FIRST_SID}; ${TNS_ADMIN_EXPORT} export PATH=\\\$ORACLE_HOME/bin:\\\$PATH; rman cmdfile=${RMAN_FILE} log=${LOG_FILE}'"
-echo "INF - Log gerado em: ${LOG_FILE}"
+echo "Log gerado em: ${LOG_FILE}"
 
 awk '
 /crosschecked backup piece: found to be/ {
@@ -473,15 +505,16 @@ awk '
     for(i=1; i<=NF; i++) { if (\$i ~ /^[0-9]+$/) rman_total = \$i }
 }
 END {
-    print "INF - ===================================================="
-    print "INF -             RESUMO DO RMAN CROSSCHECK               "
-    print "INF - ===================================================="
-    printf "INF - Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
-    printf "INF -   - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
-    printf "INF -   - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
-    print "INF - ----------------------------------------------------"
-    printf "INF - Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
-    print "INF - ===================================================="
+    print ""
+    print "===================================================="
+    print "            RESUMO DO RMAN CROSSCHECK               "
+    print "===================================================="
+    printf "Total de objetos verificados : %d\n", (rman_total ? rman_total : total)
+    printf "  - Em status AVAILABLE      : %d\n", (status_count["AVAILABLE"] ? status_count["AVAILABLE"] : 0)
+    printf "  - Em status EXPIRED        : %d\n", (status_count["EXPIRED"] ? status_count["EXPIRED"] : 0)
+    print "----------------------------------------------------"
+    printf "Pecas efetivamente deletadas : %d\n", (deleted ? deleted : 0)
+    print "===================================================="
 }
 ' "${LOG_FILE}"
 
