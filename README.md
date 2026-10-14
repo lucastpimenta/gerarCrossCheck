@@ -15,6 +15,7 @@ O objetivo é simplificar a validação e a limpeza de backups expirados registr
   - AIX: `/usr/openv/netbackup/bin/libobk.a64(shr.o)`
 - Executa validações de permissões diretamente com o usuário Oracle informado (`$DB_USER`), mesmo sendo disparado como `root`.
 - Desativa automaticamente traces excessivos de diagnóstico do cliente ADR e Net8 (`DIAG_ADR_ENABLED=OFF` e `TRACE_LEVEL_CLIENT=OFF`), evitando consumo descontrolado de espaço na partição `/oracle`.
+- Redireciona eventuais diagnósticos residuais para `/tmp` (`ADR_BASE=/tmp`).
 - Gera o inicializador executável (launcher):
 
 ```text
@@ -26,6 +27,12 @@ O objetivo é simplificar a validação e a limpeza de backups expirados registr
   - **Oracle RAC:** `~/script/crosscheck_rac_<DB_NAME>.rmn`
 - No **Oracle RAC**, aloca canais simultâneos para todos os nós participantes com seus respectivos `NB_ORA_CLIENT`, evitando falsos positivos de peças expiradas geradas por outros nós.
 - Monta automaticamente a diretiva `NB_ORA_CATALOG_HOST` com base no `Database Name` e `Database ID` (`<DB_NAME>_<DB_ID>`), integrando-se nativamente à Web UI do NetBackup.
+- Preenche sugestões automáticas baseadas nas telas do NetBackup:
+  - Sugere o `Service name` com o mesmo valor do `Database Name`.
+  - Sugere o `Instance name` sequencial formatado (`<DBNAME>001`, `<DBNAME>002`, etc.).
+  - Sugere a porta padrão `[1521]` ao pressionar Enter.
+  - Reutiliza o primeiro `ORACLE_HOME` digitado como sugestão para os nós seguintes.
+- Validação estrita do caminho da Oracle Wallet, bloqueando o avanço enquanto os arquivos (`cwallet.sso` ou `ewallet.p12`) não forem encontrados com permissão de leitura para o usuário Oracle.
 - Executa as instruções:
 
 ```rman
@@ -33,7 +40,7 @@ CROSSCHECK BACKUP;
 DELETE NOPROMPT EXPIRED BACKUP;
 ```
 
-- Exibe automaticamente na tela um resumo consolidado ao término da execução, computando o total de objetos checados, peças em status `AVAILABLE`, peças em status `EXPIRED` e peças removidas.
+- Exibe automaticamente na tela um resumo consolidado ao término da execução via `awk`, computando o total de objetos checados, peças em status `AVAILABLE`, peças em status `EXPIRED` e peças removidas.
 - Direciona os logs detalhados para o diretório `~/script/`.
 
 ---
@@ -42,7 +49,7 @@ DELETE NOPROMPT EXPIRED BACKUP;
 
 - Bash
 - Oracle RMAN
-- Veritas NetBackup 10.x
+- Veritas NetBackup (10.x / 9.x)
 
 ---
 
@@ -54,6 +61,9 @@ Execute como `root` no servidor desejado.
 
 ```text
 python3 -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh','gerarCrossCheck.sh')"
+```
+
+```text
 chmod 755 gerarCrossCheck.sh
 ```
 
@@ -61,6 +71,9 @@ chmod 755 gerarCrossCheck.sh
 
 ```text
 curl -sSL https://raw.githubusercontent.com/lucastpimenta/gerarCrossCheck/main/gerarCrossCheck.sh -o gerarCrossCheck.sh
+```
+
+```text
 chmod 755 gerarCrossCheck.sh
 ```
 
@@ -88,15 +101,15 @@ As perguntas são organizadas na ordem visual exata das telas de administração
    - Enter database name / Database unique name
    - Database ID *(o script concatena `<DB_NAME>_<DB_ID>` para o catálogo)*
    - Scan name
-   - Service name
-   - Port
-   - Oracle Wallet path *(validação de leitura das credenciais pelo usuário Oracle)*
+   - Service name *(sugere o Database Name informado)*
+   - Port [1521] *(sugere 1521 ao pressionar Enter)*
+   - Oracle Wallet path *(validação estrita em loop pelo usuário Oracle)*
 3. **Tela "Instances" (Tabela de Nós do RAC):**
-   - Quantidade de instâncias (linhas da tabela)
+   - Quantidade de instâncias do RAC
    - Para cada nó:
-     - Instance name
+     - Instance name *(sugestão em maiúsculas: DBNAME001, DBNAME002, etc.)*
      - Client name (IP ou Hostname registrado no NetBackup)
-     - Oracle home
+     - Oracle home *(a partir do nó 2, sugere o valor do nó anterior)*
 
 ---
 
@@ -108,7 +121,7 @@ As perguntas são organizadas na ordem visual exata das telas de administração
 /usr/openv/netbackup/ext/db_ext/oracle/crosscheck.sh
 ```
 
-Script responsável por exportar as variáveis de ambiente necessárias (`ORACLE_HOME`, `ORACLE_SID`, `TNS_ADMIN`, `DIAG_ADR_ENABLED=OFF`, `TRACE_LEVEL_CLIENT=OFF`, `ADR_BASE=/tmp`, `PATH`) sob a identidade do usuário do banco, chamar o binário `rman` e processar o resumo consolidado de status.
+Script responsável por exportar as variáveis de ambiente necessárias (`ORACLE_HOME`, `ORACLE_SID`, `TNS_ADMIN`, `DIAG_ADR_ENABLED=OFF`, `TRACE_LEVEL_CLIENT=OFF`, `ADR_BASE=/tmp`, `PATH`) sob a identidade do usuário do banco, chamar o binário `rman` e processar o resumo consolidado de status via `awk`.
 
 ### Scripts RMAN
 
@@ -188,6 +201,12 @@ GitHub: [https://github.com/lucastpimenta](https://github.com/lucastpimenta)
 - Desativação do tracing excessivo do cliente Oracle ADR (`DIAG_ADR_ENABLED=OFF` e `TRACE_LEVEL_CLIENT=OFF`), impedindo crescimento de arquivos `.trc` na partição `/oracle`.
 - Redirecionamento de diagnósticos residuais para `/tmp` (`ADR_BASE=/tmp`).
 - Adição de bloco analisador `awk` compatível com AIX/Linux no launcher para exibição automática de resumo de peças avaliadas, disponíveis e deletadas.
+- Validação estrita em loop para o caminho da Oracle Wallet (impede prosseguir com caminho inválido).
+- Sugestões inteligentes ao pressionar Enter:
+  - Sugestão do `Service name` com base no `Database name`.
+  - Sugestão da porta padrão `[1521]`.
+  - Sugestão de `Instance name` formatado sequencialmente (`DBNAME001`, `DBNAME002`...).
+  - Sugestão de reaproveitamento do `Oracle home` entre os nós do RAC.
 - Atualização do método de download via `python3` com comando isolado para IBM AIX.
 
 ### v3.0
