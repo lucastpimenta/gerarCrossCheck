@@ -8,14 +8,14 @@ Permite validar e remover backups expirados registrados no catálogo do RMAN tan
 
 ## 📦 Funcionalidades
 
-- **Multiplataforma:** Detecta automaticamente o sistema operacional (**Linux**, **Solaris** e **AIX**) e associa a respectiva biblioteca NetBackup SBT (`libobk`)[cite: 1]:
+- **Multiplataforma:** Detecta automaticamente o sistema operacional (**Linux**, **Solaris** e **AIX**) e associa a respectiva biblioteca NetBackup SBT (`libobk`):
   - Linux: `/usr/openv/netbackup/bin/libobk.so64`
   - Solaris: `/usr/openv/netbackup/bin/libobk.so64.1`
-  - AIX: `/usr/openv/netbackup/bin/libobk.a64(shr.o)`[cite: 1]
+  - AIX: `/usr/openv/netbackup/bin/libobk.a64(shr.o)`
 - **Dois Modos de Operação:**
   - **Interativo:** Conduz o preenchimento com validações e sugestões automáticas.
   - **Modo Silencioso (`--silent`):** Executa sem paradas via flags de linha de comando ou arquivo `.conf` (ideal para automações com Ansible, pipelines ou shell script).
-- **Oracle RAC Multi-Node:** Aloca canais simultâneos para cada nó participante com seus respectivos `NB_ORA_CLIENT`[cite: 1], prevenindo expirações incorretas de peças entre nós.
+- **Oracle RAC Multi-Node:** Aloca canais simultâneos para cada nó participante com seus respectivos `NB_ORA_CLIENT`, prevenindo expirações incorretas de peças entre nós.
 - **Integração com Catálogo NetBackup:** Monta automaticamente o descritor `NB_ORA_CATALOG_HOST` no padrão `<DB_NAME>_<DB_ID>`.
 - **Feedbacks em Tempo Real no Monitor de Jobs:** Formata as saídas do Launcher com o prefixo `INF - `, permitindo que o processo `bphdb` do NetBackup encaminhe o progresso e o resumo do RMAN diretamente para o **Job Details** da Web UI e Activity Monitor.
 - **Geração Segura de Arquivos:**
@@ -28,7 +28,7 @@ Permite validar e remover backups expirados registrados no catálogo do RMAN tan
 
 - Bash
 - Oracle RMAN
-- Veritas NetBackup (10.x / 9.x)[cite: 1]
+- Veritas NetBackup (10.x / 9.x)
 
 ---
 
@@ -136,12 +136,12 @@ Execute apontando para o arquivo:
 | :--- | :--- | :---: |
 | `--silent` | Ativa o modo não-interativo | Sim (para silent) |
 | `--config <arquivo>` | Carrega parâmetros de um arquivo `.conf` | Opcional |
-| `--master <host>` | Servidor Primary / Master do NetBackup[cite: 1] | Sim |
+| `--master <host>` | Servidor Primary / Master do NetBackup | Sim |
 | `--user <so_user>` | Usuário proprietário do Oracle no SO | Sim |
 | `--type <single\|rac>` | Tipo de topologia (`single` ou `rac`) | Sim |
 | `--home <path>` | `$ORACLE_HOME` (apenas Single Instance) | Condicional (Single) |
 | `--sid <sid>` | `$ORACLE_SID` (apenas Single Instance) | Condicional (Single) |
-| `--client <client>` | Hostname/IP do cliente no NetBackup (Single)[cite: 1] | Condicional (Single) |
+| `--client <client>` | Hostname/IP do cliente no NetBackup (Single) | Condicional (Single) |
 | `--method <1\|2\|3>` | Conexão Single: 1=SO, 2=Wallet, 3=String | Opcional (Default: 1) |
 | `--dbname <name>` | Database Name / Unique Name (RAC) | Condicional (RAC) |
 | `--dbid <id>` | Database ID do Oracle (RAC) | Condicional (RAC) |
@@ -149,7 +149,7 @@ Execute apontando para o arquivo:
 | `--service <name>` | Service Name do RAC | Opcional (Default: dbname) |
 | `--port <porta>` | Porta do Listener | Opcional (Default: 1521) |
 | `--wallet <path>` | Caminho do Oracle Wallet (se Wallet/RAC) | Condicional |
-| `--nodes "<lista>"` | Lista de nós: `"SID:IP:HOME,SID:IP:HOME"`[cite: 1] | Condicional (RAC Silent) |
+| `--nodes "<lista>"` | Lista de nós: `"SID:IP:HOME,SID:IP:HOME"` | Condicional (RAC Silent) |
 | `-h`, `--help` | Exibe o menu de ajuda no console | Opcional |
 
 ---
